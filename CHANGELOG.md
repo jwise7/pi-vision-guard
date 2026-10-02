@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.0
+
+- Ranking uses the first available registered classifier with no built-in model preference (previously preferred a local clef provider); fully backend-agnostic, pairs with `pi-local-classifier` for offline use.
+
 ## 0.1.0 — Initial release
 
 - Cap image payloads per request (default 5, `/vision-guard 1..6`), dropping to 1 past 35% context usage.

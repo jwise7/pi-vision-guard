@@ -8,11 +8,8 @@ const MAX_EDGE = 1600;
 const DEFAULT_RETAINED_IMAGES = 5;
 const LONG_CONTEXT_FRACTION = 0.35;
 const MAX_SOURCE_BYTES = 64 * 1024 * 1024;
-// Preferred registry classifier for relevance ranking. Any registered
-// classifier works — local clef first when present, otherwise the first
-// available one. Recency fallback covers no-classifier setups.
-const CLEF_PROVIDER = "clef-local";
-const CLEF_MODEL = "clef-flash";
+// Relevance ranking uses the first available registry classifier, if any.
+// Recency fallback covers no-classifier setups.
 const OMITTED_TEXT =
 	"[Older image omitted from this request by the local vision context guard. Use existing textual observations or reread one specific image if it is essential.]";
 
@@ -164,9 +161,7 @@ async function scoreKeepers(
 	taskHint: string,
 	ctx: ExtensionContext,
 ): Promise<number[] | undefined> {
-	const clf =
-		ctx.modelRegistry.findOfType("classifier", CLEF_PROVIDER, CLEF_MODEL) ??
-		ctx.modelRegistry.getModelsOfType("classifier")[0];
+	const clf = ctx.modelRegistry.getModelsOfType("classifier")[0];
 	if (!clf) return undefined;
 	const questions: Record<string, ClassifierQuestion> = {};
 	for (let i = 0; i < slots.length; i++) {
@@ -214,9 +209,9 @@ async function scoreKeepers(
 
 /**
  * Relevance-ranked prune within the same budget the recency guard used.
- * Newest image is always kept; remaining slots go to the highest clef
+ * Newest image is always kept; remaining slots go to the highest classifier
  * keep-scores, falling back to recency when there is no ranking signal
- * (bare images) or the sidecar is unreachable.
+ * (bare images) or the classifier is unavailable.
  */
 async function pruneRanked(
 	messages: any[],

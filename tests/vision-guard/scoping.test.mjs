@@ -57,7 +57,6 @@ function makeCtx(model) {
 		model,
 		signal: undefined,
 		modelRegistry: {
-			findOfType: () => undefined,
 			getModelsOfType: () => [],
 			classify: async () => {
 				throw new Error("classifier must not be consulted for bare images");
