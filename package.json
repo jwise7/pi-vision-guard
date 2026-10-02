@@ -1,6 +1,6 @@
 {
   "name": "pi-vision-guard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pi extension that caps, shrinks, and relevance-ranks image payloads so long vision sessions stop 413ing",
   "author": "Jesse Wise",
   "license": "MIT",
@@ -12,14 +12,28 @@
   "bugs": {
     "url": "https://github.com/jwise7/pi-vision-guard/issues"
   },
-  "keywords": ["pi-package", "pi", "vision", "images", "context", "coding-agent"],
+  "keywords": [
+    "pi-package",
+    "pi",
+    "vision",
+    "images",
+    "context",
+    "coding-agent"
+  ],
   "publishConfig": {
     "access": "public"
   },
   "pi": {
-    "extensions": ["./extensions"]
+    "extensions": [
+      "./extensions"
+    ]
   },
-  "files": ["extensions/", "README.md", "CHANGELOG.md", "LICENSE"],
+  "files": [
+    "extensions/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "node --test tests/vision-guard/scoping.test.mjs tests/vision-guard/ranking.test.mjs"
   },
