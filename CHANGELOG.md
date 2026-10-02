@@ -1,0 +1,10 @@
+# Changelog
+
+## 0.1.0 — Initial release
+
+- Cap image payloads per request (default 5, `/vision-guard 1..6`), dropping to 1 past 35% context usage.
+- Resize attached and tool-result images to 1600px (macOS `sips`, graceful no-op elsewhere).
+- Relevance-ranked pruning via any registered Pi classifier (newest always pinned, one batched keep/drop call, recency fallback).
+- Exempt non-HTTP transports (`muse-msp` stdio bridge).
+- Placeholder text plus a system-prompt note so the model banks image conclusions as text.
+- `node --test` suites for provider scoping and ranking/fallback behavior.
