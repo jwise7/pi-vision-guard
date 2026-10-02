@@ -30,8 +30,6 @@ Three layers, all automatic:
 2. **Budget.** At most 5 image payloads are sent per request, dropping to 1 total past 35% context usage. The newest image is always kept; older ones beyond budget become a short placeholder note.
 3. **Relevance ranking.** When any Pi classifier is registered (a local Jev-style model, TypeSafe `jev-latest`, etc.), one batched keep/drop call ranks older images from their surrounding text and keeps the highest scorers. No classifier, no signal, or any failure → newest-first fallback. Image bytes are never sent to the classifier, only short text descriptors.
 
-Transports that aren't HTTP-size-limited are exempt: `muse-msp` (stdio bridge) skips the guard entirely. The guard also appends a short note to the system prompt so the model records image conclusions as text instead of rereading render history.
-
 ## Classifier ranking
 
 Ranking lights up automatically with any registered Pi classifier — no settings. A local `clef-local/clef-flash` provider is preferred when present, otherwise the first available classifier is used. The questions are plain keep/drop judgments, so any Jev-family decision model works.
