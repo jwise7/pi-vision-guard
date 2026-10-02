@@ -1,6 +1,6 @@
 {
   "name": "pi-vision-guard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Pi extension that caps, shrinks, and relevance-ranks image payloads so long vision sessions stop 413ing",
   "author": "Jesse Wise",
   "license": "MIT",
