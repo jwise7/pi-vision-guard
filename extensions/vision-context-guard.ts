@@ -155,14 +155,19 @@ function lastUserText(messages: any[]): string {
 	return "(unknown)";
 }
 
-/** One batched classifier call scoring every candidate. Returns scores aligned with slots, or undefined on any failure. */
+/**
+ * One batched classifier call scoring every candidate. Tries each registered
+ * classifier in order until one returns usable scores — a keyless or failing
+ * first pick must not block a working backend later in the list. Returns
+ * scores aligned with slots, or undefined when none answer. Abort still throws.
+ */
 async function scoreKeepers(
 	slots: ImageSlot[],
 	taskHint: string,
 	ctx: ExtensionContext,
 ): Promise<number[] | undefined> {
-	const clf = ctx.modelRegistry.getModelsOfType("classifier")[0];
-	if (!clf) return undefined;
+	const models = ctx.modelRegistry.getModelsOfType("classifier");
+	if (models.length === 0) return undefined;
 	const questions: Record<string, ClassifierQuestion> = {};
 	for (let i = 0; i < slots.length; i++) {
 		questions[`keep_${i}`] = {
@@ -174,44 +179,51 @@ async function scoreKeepers(
 			},
 		};
 	}
-	try {
-		const result = await ctx.modelRegistry.classify(
-			clf,
-			{
-				state: {
-					task: taskHint,
-					images: slots.map((s, i) => ({
-						index: i,
-						role: s.role,
-						context: s.text.slice(0, 300) || "(no surrounding text)",
-					})),
+	for (const clf of models) {
+		if (ctx.signal?.aborted) throw new Error("aborted");
+		try {
+			const result = await ctx.modelRegistry.classify(
+				clf,
+				{
+					state: {
+						task: taskHint,
+						images: slots.map((s, i) => ({
+							index: i,
+							role: s.role,
+							context: s.text.slice(0, 300) || "(no surrounding text)",
+						})),
+					},
+					questions,
 				},
-				questions,
-			},
-			{ signal: ctx.signal },
-		);
-		if (result.stopReason !== "stop") {
+				{ signal: ctx.signal },
+			);
 			if (result.stopReason === "aborted" || ctx.signal?.aborted) throw new Error("aborted");
-			return undefined;
+			if (result.stopReason !== "stop") continue;
+			const scores: number[] = [];
+			let usable = true;
+			for (let i = 0; i < slots.length; i++) {
+				const a = result.answers[`keep_${i}`];
+				if (a?.type !== "bool") {
+					usable = false;
+					break;
+				}
+				scores.push(a.probability);
+			}
+			if (!usable) continue;
+			return scores;
+		} catch (e) {
+			if (ctx.signal?.aborted) throw e;
+			continue;
 		}
-		const scores: number[] = [];
-		for (let i = 0; i < slots.length; i++) {
-			const a = result.answers[`keep_${i}`];
-			if (a?.type !== "bool") return undefined;
-			scores.push(a.probability);
-		}
-		return scores;
-	} catch (e) {
-		if (ctx.signal?.aborted) throw e;
-		return undefined;
 	}
+	return undefined;
 }
 
 /**
  * Relevance-ranked prune within the same budget the recency guard used.
  * Newest image is always kept; remaining slots go to the highest classifier
  * keep-scores, falling back to recency when there is no ranking signal
- * (bare images) or the classifier is unavailable.
+ * (bare images) or no classifier answers.
  */
 async function pruneRanked(
 	messages: any[],

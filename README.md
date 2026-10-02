@@ -32,7 +32,7 @@ Three layers, all automatic:
 
 ## Classifier ranking
 
-Ranking lights up automatically with the first available registered Pi classifier — no settings. The questions are plain keep/drop judgments, so any Jev-family decision model works. With no classifier present, the guard silently uses newest-first order. Pairs with `pi-local-classifier` for fully offline ranking with no API key.
+Ranking lights up automatically with your registered Pi classifiers — no settings. Each is tried in order until one answers, so a keyless cloud entry never blocks a working local backend. The questions are plain keep/drop judgments, so any Jev-family decision model works. With no classifier present, the guard silently uses newest-first order. Pairs with `pi-local-classifier` for fully offline ranking with no API key.
 
 ## ⚠️ Cache-churn caveat
 

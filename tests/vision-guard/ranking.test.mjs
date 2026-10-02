@@ -80,6 +80,35 @@ function registryWithScores(scores) {
 	return { registry, calls: () => calls };
 }
 
+function registryWithModels(models, classifyImpl) {
+	return {
+		getModelsOfType: (type) => {
+			assert.equal(type, "classifier");
+			return models;
+		},
+		classify: classifyImpl,
+	};
+}
+
+function scoredAnswers(scores) {
+	const answers = {};
+	for (let i = 0; i < scores.length; i++) {
+		answers[`keep_${i}`] = { type: "bool", probability: scores[i] };
+	}
+	return answers;
+}
+
+function sixMessages() {
+	return [
+		msg("user", "receipt for the acme purchase", "img0"),
+		msg("user", "older screenshot", "img1"),
+		msg("user", "random meme", "img2"),
+		msg("user", "error dialog from the failing test", "img3"),
+		msg("user", "config screen", "img4"),
+		msg("user", "current screenshot", "img5"),
+	];
+}
+
 function silentRegistry() {
 	return {
 		getModelsOfType: () => {
@@ -189,5 +218,62 @@ describe("vision-context-guard: classifier relevance ranking", () => {
 		const messages = [msg("user", "only image", "img0")];
 		const result = await handlers.get("context")({ messages }, makeCtx(silentRegistry()));
 		assert.deepEqual(remainingImageData(result.messages), ["img0"]);
+	});
+
+	it("tries the next classifier when the first one throws", async () => {
+		const { pi, handlers } = makePi();
+		(await loadExtension())(pi);
+		const seen = [];
+		const registry = registryWithModels([{ id: "dead-cloud" }, { id: "live-local" }], async (model) => {
+			seen.push(model.id);
+			if (model.id === "dead-cloud") throw new Error("401 unauthorized");
+			return { stopReason: "stop", answers: scoredAnswers([0.9, 0.2, 0.1, 0.85, 0.3]) };
+		});
+		const result = await handlers.get("context")({ messages: sixMessages() }, makeCtx(registry));
+		assert.deepEqual(seen, ["dead-cloud", "live-local"], "failed first pick must not stop failover");
+		assert.deepEqual(remainingImageData(result.messages), ["img0", "img1", "img3", "img4", "img5"]);
+	});
+
+	it("tries the next classifier when the first returns a non-stop result", async () => {
+		const { pi, handlers } = makePi();
+		(await loadExtension())(pi);
+		const seen = [];
+		const registry = registryWithModels([{ id: "keyless" }, { id: "live-local" }], async (model) => {
+			seen.push(model.id);
+			if (model.id === "keyless") return { stopReason: "error", errorMessage: "no key", answers: {} };
+			return { stopReason: "stop", answers: scoredAnswers([0.9, 0.2, 0.1, 0.85, 0.3]) };
+		});
+		const result = await handlers.get("context")({ messages: sixMessages() }, makeCtx(registry));
+		assert.deepEqual(seen, ["keyless", "live-local"]);
+		assert.deepEqual(remainingImageData(result.messages), ["img0", "img1", "img3", "img4", "img5"]);
+	});
+
+	it("falls back to newest-first when every classifier fails", async () => {
+		const { pi, handlers } = makePi();
+		(await loadExtension())(pi);
+		const seen = [];
+		const registry = registryWithModels([{ id: "dead-a" }, { id: "dead-b" }], async (model) => {
+			seen.push(model.id);
+			throw new Error("backend down");
+		});
+		const result = await handlers.get("context")({ messages: sixMessages() }, makeCtx(registry));
+		assert.deepEqual(seen, ["dead-a", "dead-b"], "every candidate tried before giving up");
+		assert.deepEqual(remainingImageData(result.messages), ["img1", "img2", "img3", "img4", "img5"]);
+	});
+
+	it("rethrows instead of failing over when the turn aborts", async () => {
+		const { pi, handlers } = makePi();
+		(await loadExtension())(pi);
+		let calls = 0;
+		const registry = registryWithModels([{ id: "first" }, { id: "second" }], async () => {
+			calls++;
+			throw new Error("backend down");
+		});
+		const controller = new AbortController();
+		controller.abort();
+		const ctx = makeCtx(registry);
+		ctx.signal = controller.signal;
+		await assert.rejects(handlers.get("context")({ messages: sixMessages() }, ctx));
+		assert.ok(calls <= 1, `abort short-circuits failover (calls=${calls})`);
 	});
 });

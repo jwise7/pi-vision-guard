@@ -3,6 +3,7 @@
 ## 0.2.0
 
 - Ranking uses the first available registered classifier with no built-in model preference (previously preferred a local clef provider); fully backend-agnostic, pairs with `pi-local-classifier` for offline use.
+- Ranking tries each registered classifier in order until one answers: a keyless or failing first pick (e.g. a built-in cloud entry with no API key) no longer blocks a working backend later in the list. Recency fallback now only fires when no classifier answers at all.
 
 ## 0.1.0 — Initial release
 
